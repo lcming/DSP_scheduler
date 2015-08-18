@@ -14,11 +14,19 @@ typedef pair<int, int> int_pair;
 typedef map<int, int> int_map;
 
 
+typedef enum
+{
+    scalar,
+    vliw,
+    cascaded
+} archi;
+
 vector<vector<int> > asap(vector<node> list);
 
 vector<vector<int> > alap(vector<node> list);
 
-vector<vector<int> > lbs(vector<node> list, int add, int mul, int shi);
+vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi);
+vector<vector<int> > scalar_lbs(vector<node> list, int add, int mul, int shi);
 
 
 

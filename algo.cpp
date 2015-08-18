@@ -1,8 +1,74 @@
 #include "algo.h"
 
 
+vector<vector<int> > scalar_lbs(vector<node> list, int add, int mul, int shi)
+{
+    assert(add > 0 && mul > 0 && shi > 0);
+    assert(add == mul && shi == mul);
+    vector<vector<int> > step;
 
-vector<vector<int> > lbs(vector<node> list, int add, int mul, int shi)
+    int schedule = 0;
+    int t = 0;
+    // schedule for each time step
+    while(schedule != list.size()) 
+    {
+        vector<int> tmp;
+        step.push_back(tmp);
+        printf("time step %d:", t);
+
+        // pair <mob, id>
+        vector<int_pair> fu_list;
+
+
+        // check each node
+        for(int i = 0; i < list.size(); i++)
+        {
+            node* ptr = &(list[i]);
+            if( (!ptr->scheduled) && (!ptr->wait) )
+            {
+                // put the node to function list
+                fu_list.push_back(int_pair(ptr->mob(), ptr->id));
+            }
+        }
+
+        sort(fu_list.begin(), fu_list.end());
+
+        // scheduling fu
+        for(int i = 0; i < fu_list.size(); i++)
+        {
+            if(i == add) // full
+                break;
+            int_pair fire = fu_list[i];
+            int id = fire.second;
+            step[t].push_back(id); // push id
+            schedule++;
+            list[id].scheduled = true;
+            printf("%d ", id);
+        }
+
+
+        // trigger following nodes of scheduled nodes
+        for(int i = 0; i < step[t].size(); i++)
+        {
+            // locate the node object by time step and id
+            node* ptr = &(list[step[t][i]]);
+
+            // iterate each id of its followers
+            for(int j = 0; j < ptr->sucs.size(); j++) 
+            {
+                list[ptr->sucs[j]].wait--;
+            }
+        }
+        // next time step
+        printf("\n");
+        t++;
+    }
+    return step;
+
+
+}
+
+vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
 {
     assert(add > 0 && mul > 0 && shi > 0);
     vector<vector<int> > step;

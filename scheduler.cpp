@@ -22,6 +22,7 @@ int main(int argc, char* argv[])
     int num_add = atoi(argv[2]); 
     int num_mul = atoi(argv[3]); 
     int num_shi = atoi(argv[4]);
+    int _archi = atoi(argv[5]);
     
     printf("log: %d adders, %d multipliers, %d shifters\n", num_add, num_mul, num_shi);
 
@@ -100,10 +101,17 @@ int main(int argc, char* argv[])
     for(int i = 0; i < node_list.size(); i++)
         printf("%d ", node_list[i].mob());
     printf("\n");
-        
-    vector<vector<int> > _lbs = lbs(node_list, num_add, num_mul, num_shi);
+    if (_archi == vliw) 
+    {
+        vector<vector<int> > _lbs = vliw_lbs(node_list, num_add, num_mul, num_shi);
+        printf("vliw_total %s %d\n", argv[1], _lbs.size()+1);
+    }
+    else if(_archi == scalar)
+    {
+        vector<vector<int> > _lbs = scalar_lbs(node_list, num_add, num_mul, num_shi);
+        printf("scalar_total %s %d\n", argv[1], _lbs.size()+1);
+    }
 
-    printf("total %s %d\n", argv[1], _lbs.size()+1);
     //display(node_list, num_op, 2);
     return 0;
 }
