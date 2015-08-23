@@ -36,9 +36,6 @@ void node::display(int level)
         case ADD: 
             opname = "ADD";
             break;
-        case SUB:
-            opname = "SUB";
-            break;
         case MUL:
             opname = "MUL";
             break;

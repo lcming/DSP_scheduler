@@ -1,5 +1,125 @@
 #include "algo.h"
 
+vector<vector<int> > cascade_coverage(vector<node> list, char* file_name)
+{
+    ifstream fin2(file_name);
+    int n_fu, tmp;
+    fin2 >> n_fu;
+    operation* cas_fu = (operation*)malloc(sizeof(operation)*n_fu);
+    for(int i = 0; i < n_fu; i++)
+    {
+        fin2>>tmp;
+        switch(tmp)
+        {
+            case 0:
+                cas_fu[i] = ADD;
+                break;
+
+            case 1:
+                cas_fu[i] = MUL;
+                break;
+                
+            case 2:
+                cas_fu[i] = SHI;
+                break;
+
+            default:
+                printf("error: undefined FU %d\n", tmp);
+        }
+    }
+    vector<vector<int> > step;
+
+    // a list to record node scheduling status, initialized as 0
+    int* node_status = (int*)calloc(sizeof(int), list.size());
+    int schedule = 0;
+    int t = 0;
+
+    // for each level
+    for(int i = n_fu; i >= 1; i--)
+    {
+        printf("level %d\n", i);
+        int cnt = generate_combos(n_fu, i);
+        operation* comb = (operation*)malloc(sizeof(operation)*i);
+        fstream fin("comb.txt");
+        int pick;
+        for(int k = 0; k < cnt; k++)
+        {
+            for(int j = 0; j < i; j++)
+            {
+                fin >> pick;
+                // pick up an index, then get the fu
+                comb[j] = cas_fu[pick];
+                //printf("%d ", comb[j]);
+            }
+            //printf("\n");
+            // coverage for this combination, check for each node
+            for(int m = 0; m < list.size(); m++)
+            {
+                // try to find a pattern mached
+                vector<int> match;
+                match = rec_search(list, node_status, m, comb, 0, i, match);
+
+                // a full matched pattern found
+                if(match.size() == i)
+                {
+                    printf("time step %d:", t);
+                    vector<int> tmp;
+                    schedule += i; 
+                    for(int k = 0; k < match.size(); k++)
+                    {
+                        node_status[match[k]] = 1;  // update node status
+                        tmp.push_back(match[k]);
+                        printf("%d ", match[k]);
+                    }
+                    printf("\n");
+                    step.push_back(tmp);
+                    t++;
+                }
+                if(schedule == list.size())
+                    break;
+            
+            }
+        }
+        fin.close();
+
+    }
+
+    return step;
+
+   
+}
+
+
+vector<int> rec_search(const vector<node>& list, int* node_status, int id, operation* cas_fu, int cur, int end, vector<int> vec_in)
+{
+    // not match or already scheduled, return directly
+    if(cas_fu[cur] != list[id].op || node_status[id] == 1)
+        return vec_in;
+
+    vec_in.push_back(id);
+    vector<int> vec_cpy = vec_in;
+    printf("debug: hit %d type: %d\n", id, list[id].op);
+
+    // is it the end of cascade
+    if(cur == end) 
+    {
+        printf("debug: return size: %d\n", vec_cpy.size());
+        return vec_cpy;
+    }
+
+    // hit, then find its succesors
+    for(int i = 0; i < list[id].sucs.size(); i++) 
+    {
+        printf("debug: call size: %d\n", vec_in.size());
+        vec_cpy = rec_search(list, node_status, list[id].sucs[i], cas_fu, cur+1, end, vec_in);
+        if(vec_cpy.size() > vec_in.size())
+            break;
+    }
+    printf("debug: return size: %d\n", vec_cpy.size());
+    return vec_cpy;
+}
+
+
 
 vector<vector<int> > scalar_lbs(vector<node> list, int add, int mul, int shi)
 {
@@ -95,7 +215,7 @@ vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
             if( (!ptr->scheduled) && (!ptr->wait) )
             {
                 // put the node to function list
-                if(ptr->op == ADD || ptr->op == SUB)
+                if(ptr->op == ADD)
                     add_list.push_back(int_pair(ptr->mob(), ptr->id));
                 else if(ptr->op == MUL)
                     mul_list.push_back(int_pair(ptr->mob(), ptr->id));
@@ -287,3 +407,35 @@ vector<vector<int> > alap(vector<node> list)
     }
     return step;
 }
+
+int generate_combos(int n, int k) {
+    ofstream fout("comb.txt");
+    int com[100];
+    for (int i = 0; i < k; i++) com[i] = i;
+    while (com[k - 1] < n) {
+        for (int i = 0; i < k; i++)
+            fout << com[i] << " ";
+        //fout << endl;
+
+        int t = k - 1;
+        while (t != 0 && com[t] == n - k + t) t--;
+        com[t]++;
+        for (int i = t + 1; i < k; i++) com[i] = com[i - 1] + 1;
+    }
+    fout.close();
+
+    int ret = 1;
+    int tmp = n;
+    for(int i = 0; i < k; i++)
+    {
+        ret *= tmp;
+        tmp--;
+    }
+    for(int i = k; i >=1; i--)
+    {
+        ret /= i; 
+    }
+    return ret;
+}
+
+

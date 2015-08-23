@@ -12,7 +12,6 @@ using namespace std;
 enum operation
 {
     ADD,
-    SUB,
     MUL,
     SHI
 };

@@ -13,18 +13,39 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
-    if(argc < 5)
+    if(argc < 3)
     {
-        printf("usage: <input file> <# of adder> <# of multiplier> <# of shifter>\n");
+        printf("usage: <input file> <archi>\n");
         exit(1);
     }
+
     printf("log: read input file %s\n", argv[1]);
-    int num_add = atoi(argv[2]); 
-    int num_mul = atoi(argv[3]); 
-    int num_shi = atoi(argv[4]);
-    int _archi = atoi(argv[5]);
+    int _archi = atoi(argv[2]);
+    int num_add, num_mul, num_shi;
+
+    if( _archi == 2) // only for cascade
+    {
+        if(argc < 4)
+        {
+            printf("usage: <input file> <archi> <cascade order file>\n");
+            exit(1);
+        }
+        char* file_name = argv[3];
+    }
+    else            // VLIW or scalar must specify # of each FU type
+    {
+        if(argc < 6)
+        {
+            printf("usage: <input file> <archi> <# of adder> <# of multiplier> <# of shifter>\n");
+            exit(1);
+        }
+        num_add = atoi(argv[3]); 
+        num_mul = atoi(argv[4]); 
+        num_shi = atoi(argv[5]);
+        printf("log: %d adders, %d multipliers, %d shifters\n", num_add, num_mul, num_shi);
+   
+    }
     
-    printf("log: %d adders, %d multipliers, %d shifters\n", num_add, num_mul, num_shi);
 
     ifstream fin;
     fin.open(argv[1]);
@@ -46,10 +67,8 @@ int main(int argc, char* argv[])
     {
         fin >> id >> name_op; 
         //assert( id == i);
-        if(name_op == "ADD" || name_op == "add")
+        if(name_op == "ADD" || name_op == "add" || name_op == "SUB" || name_op == "sub")
             node_list[id].init(id, ADD);
-        else if (name_op == "SUB" || name_op == "sub")
-            node_list[id].init(id, SUB);
         else if (name_op == "MUL" || name_op == "mul")
             node_list[id].init(id, MUL);
         else if (name_op == "SHI" || name_op == "shi")
@@ -110,6 +129,16 @@ int main(int argc, char* argv[])
     {
         vector<vector<int> > _lbs = scalar_lbs(node_list, num_add, num_mul, num_shi);
         printf("scalar_total %s %d\n", argv[1], _lbs.size()+1);
+    }
+    else if (_archi == cascade)
+    {
+        operation cascaded_fu[3];
+        cascaded_fu[num_add] = ADD;
+        cascaded_fu[num_mul] = MUL;
+        cascaded_fu[num_shi] = SHI;
+        vector<vector<int> > _lbs = cascade_coverage(node_list, argv[3]);
+        printf("cascade_total %s %d\n", argv[1], _lbs.size()+1);
+    
     }
 
     //display(node_list, num_op, 2);
