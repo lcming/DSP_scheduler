@@ -13,6 +13,7 @@ using namespace std;
 
 int main(int argc, char* argv[])
 {
+    // processing arguments
     if(argc < 3)
     {
         printf("usage: <input file> <archi>\n");
@@ -47,6 +48,7 @@ int main(int argc, char* argv[])
     }
     
 
+    // read file to construct DFG
     ifstream fin;
     fin.open(argv[1]);
     if(fin.fail())
@@ -120,15 +122,17 @@ int main(int argc, char* argv[])
     for(int i = 0; i < node_list.size(); i++)
         printf("%d ", node_list[i].mob());
     printf("\n");
+
+    // start profiling
     if (_archi == vliw) 
     {
         vector<vector<int> > _lbs = vliw_lbs(node_list, num_add, num_mul, num_shi);
-        printf("vliw_total %s %d\n", argv[1], _lbs.size()+1);
+        printf("vliw_total %s %d\n", argv[1], _lbs.size());
     }
     else if(_archi == scalar)
     {
         vector<vector<int> > _lbs = scalar_lbs(node_list, num_add, num_mul, num_shi);
-        printf("scalar_total %s %d\n", argv[1], _lbs.size()+1);
+        printf("scalar_total %s %d\n", argv[1], _lbs.size());
     }
     else if (_archi == cascade)
     {
@@ -137,10 +141,13 @@ int main(int argc, char* argv[])
         cascaded_fu[num_mul] = MUL;
         cascaded_fu[num_shi] = SHI;
         vector<vector<int> > _lbs = cascade_coverage(node_list, argv[3]);
-        printf("cascade_total %s %d\n", argv[1], _lbs.size()+1);
+        printf("cascade_total %s %d\n", argv[1], _lbs.size());
     
     }
+    else
+    {
+        printf("error: the archi %d is undefined\n", _archi);
+    }
 
-    //display(node_list, num_op, 2);
     return 0;
 }
