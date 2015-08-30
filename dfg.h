@@ -20,6 +20,7 @@ class node
 {
     public:
         operation op;      // op type
+        int super;
         int id;
         int step;          // fianl scheduled step
         int tl;            // time of alap
@@ -28,7 +29,10 @@ class node
         node* node_list;
         int wait;          // # of operands it waits for
         int pre_l, pre_r;  // left & right predecessor IDs
+        int rf_pre_l, rf_pre_r;  // reg index of predecessor
+        int rf_id;
         vector<int> sucs;  // successors IDs
+        vector<int> pres;  // predecessor, only used in super mode
 
         node();
         ~node();
@@ -36,6 +40,8 @@ class node
         void connect(int target);   // connet to a successor
         void connected(int source); // connet by a predecessor
         void display(int level);    // show status
+        void set_src_regs(int src_id, int src_rf);
+        void show_inst();
         int  mob();
 
 

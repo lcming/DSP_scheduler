@@ -129,6 +129,7 @@ vector<vector<int> > scalar_lbs(vector<node> list, int add, int mul, int shi)
 
     int schedule = 0;
     int t = 0;
+    int reg_cnt = 0;
     // schedule for each time step
     while(schedule != list.size()) 
     {
@@ -146,7 +147,7 @@ vector<vector<int> > scalar_lbs(vector<node> list, int add, int mul, int shi)
             node* ptr = &(list[i]);
             if( (!ptr->scheduled) && (!ptr->wait) )
             {
-                // put the node to function list
+               // put the node to function list
                 fu_list.push_back(int_pair(ptr->mob(), ptr->id));
             }
         }
@@ -160,10 +161,27 @@ vector<vector<int> > scalar_lbs(vector<node> list, int add, int mul, int shi)
                 break;
             int_pair fire = fu_list[i];
             int id = fire.second;
+            node* ptr = &(list[id]);
             step[t].push_back(id); // push id
             schedule++;
             list[id].scheduled = true;
-            printf("%d ", id);
+            //printf("%d ", id);
+
+            // source operand not exsit, must be loaded from mem
+            if(ptr->pre_l == -1)    // load operand from mem
+            {
+                printf("<LD #%d>  ", reg_cnt);
+                ptr->rf_pre_l = reg_cnt++;  // use the reg
+            }
+
+            // considering two operands case, so check the right
+            if(ptr->op != SHI && ptr->pre_r == -1)
+            {
+                printf("<LD #%d>  ", reg_cnt);
+                ptr->rf_pre_r = reg_cnt++;  // use the reg
+            }
+            ptr->rf_id = reg_cnt++;
+            ptr->show_inst();
         }
 
 
@@ -176,7 +194,7 @@ vector<vector<int> > scalar_lbs(vector<node> list, int add, int mul, int shi)
             // iterate each id of its followers
             for(int j = 0; j < ptr->sucs.size(); j++) 
             {
-                list[ptr->sucs[j]].wait--;
+                list[ptr->sucs[j]].set_src_regs(ptr->id, ptr->rf_id);
             }
         }
         // next time step
@@ -195,6 +213,7 @@ vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
 
     int schedule = 0;
     int t = 0;
+    int reg_cnt = 0;
     // schedule for each time step
     while(schedule != list.size()) 
     {
@@ -235,10 +254,28 @@ vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
                 break;
             int_pair fire = add_list[i];
             int id = fire.second;
+            node* ptr = &(list[id]);
             step[t].push_back(id); // push id
             schedule++;
-            list[id].scheduled = true;
-            printf("%d ", id);
+            ptr->scheduled = true;
+            //printf("%d ", id);
+
+            // source operand not exsit, must be loaded from mem
+            if(ptr->pre_l == -1)    // load operand from mem
+            {
+                printf("<LD #%d>  ", reg_cnt);
+                ptr->rf_pre_l = reg_cnt++;  // use the reg
+            }
+
+            // considering two operands case, so check the right
+            if(ptr->op != SHI && ptr->pre_r == -1)
+            {
+                printf("<LD #%d>  ", reg_cnt);
+                ptr->rf_pre_r = reg_cnt++;  // use the reg
+            }
+            ptr->rf_id = reg_cnt++;
+            ptr->show_inst();
+
         }
 
         // scheduling multiplier
@@ -248,10 +285,28 @@ vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
                 break;
             int_pair fire = mul_list[i];
             int id = fire.second;
+            node* ptr = &(list[id]);
             step[t].push_back(id); // push id
             schedule++;
-            list[id].scheduled = true;
-            printf("%d ", id);
+            ptr->scheduled = true;
+            //printf("%d ", id);
+
+            // source operand not exsit, must be loaded from mem
+            if(ptr->pre_l == -1)    // load operand from mem
+            {
+                printf("<LD #%d>  ", reg_cnt);
+                ptr->rf_pre_l = reg_cnt++;  // use the reg
+            }
+
+            // considering two operands case, so check the right
+            if(ptr->op != SHI && ptr->pre_r == -1)
+            {
+                printf("<LD #%d>  ", reg_cnt);
+                ptr->rf_pre_r = reg_cnt++;  // use the reg
+            }
+            ptr->rf_id = reg_cnt++;
+            ptr->show_inst();
+
         }
 
         // scheduling shifter
@@ -261,10 +316,28 @@ vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
                 break;
             int_pair fire = shi_list[i];
             int id = fire.second;
+            node* ptr = &(list[id]);
             step[t].push_back(id); // push id
             schedule++;
-            list[id].scheduled = true;
-            printf("%d ", id);
+            ptr->scheduled = true;
+            //printf("%d ", id);
+
+            // source operand not exsit, must be loaded from mem
+            if(ptr->pre_l == -1)    // load operand from mem
+            {
+                printf("<LD #%d>  ", reg_cnt);
+                ptr->rf_pre_l = reg_cnt++;  // use the reg
+            }
+
+            // considering two operands case, so check the right
+            if(ptr->op != SHI && ptr->pre_r == -1)
+            {
+                printf("<LD #%d>  ", reg_cnt);
+                ptr->rf_pre_r = reg_cnt++;  // use the reg
+            }
+            ptr->rf_id = reg_cnt++;
+            ptr->show_inst();
+
         }
 
 
@@ -277,7 +350,7 @@ vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
             // iterate each id of its followers
             for(int j = 0; j < ptr->sucs.size(); j++) 
             {
-                list[ptr->sucs[j]].wait--;
+                list[ptr->sucs[j]].set_src_regs(ptr->id, ptr->rf_id);
             }
         }
         // next time step
