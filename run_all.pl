@@ -7,9 +7,9 @@ if(scalar@ARGV < 1)
 }
 if($ARGV[0] == 2)   #cascade
 {
-    if(scalar@ARGV < 2)
+    if(scalar@ARGV < 3)
     {
-        die "usage: archi, cascade config file"; 
+        die "usage: archi, cascade config file, # of cascade"; 
     }
 }
 else

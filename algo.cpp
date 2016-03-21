@@ -1,6 +1,6 @@
 #include "algo.h"
 
-vector<vector<int> > cascade_coverage(vector<node> list, char* file_name)
+vector<vector<int> > cascade_coverage(vector<node>& list, char* file_name, int n_cas)
 {
     ifstream fin2(file_name);
     int n_fu, tmp;
@@ -28,14 +28,13 @@ vector<vector<int> > cascade_coverage(vector<node> list, char* file_name)
         }
     }
     vector<vector<int> > step;
-
     // a list to record node scheduling status, initialized as 0
-    int* node_status = (int*)calloc(sizeof(int), list.size());
     int schedule = 0;
     int t = 0;
+    vector<int> rm_nodes;
 
-    // for each level
-    for(int i = n_fu; i >= 1; i--)
+    // for each level larger than 1
+    for(int i = n_fu; i >= 2; i--)
     {
         printf("level %d\n", i);
         int cnt = generate_combos(n_fu, i);
@@ -57,23 +56,65 @@ vector<vector<int> > cascade_coverage(vector<node> list, char* file_name)
             {
                 // try to find a pattern mached
                 vector<int> match;
-                match = rec_search(list, node_status, m, comb, 0, i, match);
+                match = rec_search(list, m, comb, 0, i, match);
 
                 // a full matched pattern found
                 if(match.size() == i)
                 {
-                    printf("time step %d:", t);
-                    vector<int> tmp;
+                    node* head = &(list[match[0]]);
+                    node* tail = &(list[match[match.size()-1]]);
+                    head->super = i;
+                    head->op_list = (operation*)malloc(sizeof(operation)*i);
+                    head->op_list[0] = head->op;
+                    //printf("time step %d:", t);
                     schedule += i; 
-                    for(int k = 0; k < match.size(); k++)
+                    // kill the suc of the head
+                    assert(head->sucs.size() == 1);
+                    head->sucs.pop_back();
+
+                    // reconnection, process middle & tail
+                    for(int n = 1; n < match.size(); n++)
                     {
-                        node_status[match[k]] = 1;  // update node status
-                        tmp.push_back(match[k]);
-                        printf("%d ", match[k]);
+                        node* cur = &(list[match[n]]);
+                        head->op_list[n] = cur->op;
+                        cur->scheduled = true;  // update node status
+                        // record the following nodes, rm in the next stage
+                        rm_nodes.push_back(match[n]);
+                        // except the super node
+                        int pres_size = cur->pres.size();
+                        int sucs_size = cur->sucs.size();
+                        // the following node have mem ref
+                        if(pres_size == 1 && cur->op != SHI)
+                            cur->wait_mem++;
+
+                        for(int h = 0; h < pres_size; h++) 
+                        {
+                            node* cur_pre = &(list[cur->pres[h]]);
+                            // check is the pre is inside the cascaded
+                            int in_cas = 0;
+                            for(int o = 0; o < match.size(); o++)
+                            {
+                                if(match[o] == cur_pre->id) 
+                                    in_cas = 1;
+                            }
+                            if( !in_cas )
+                                cur_pre->reconnect(head->id, cur->id);
+                        }
+                        for(int h = 0; h < sucs_size; h++)
+                        {
+                            node* cur_suc = &(list[cur->sucs[h]]); 
+                            int in_cas = 0;
+                            for(int o = 0; o < match.size(); o++)
+                            {
+                                if(match[o] == cur_suc->id) 
+                                    in_cas = 1;
+                            }
+                            if( !in_cas )
+                            cur_suc->reconnected(head->id, cur->id);
+                        }
                     }
-                    printf("\n");
-                    step.push_back(tmp);
-                    t++;
+
+                    // head inherits sucs of the tail
                 }
                 if(schedule == list.size())
                     break;
@@ -83,39 +124,84 @@ vector<vector<int> > cascade_coverage(vector<node> list, char* file_name)
         fin.close();
 
     }
+    // init 
+    int die = rm_nodes.size();
+    for(int i = 0; i < list.size(); i++)
+        list[i].scheduled = false;
 
-    return step;
+    for(int i = 0; i < rm_nodes.size(); i++)
+        list[rm_nodes[i]].scheduled = true;
+
+    vector<vector<int> > _asap = asap(list, die);
+    vector<vector<int> > _alap = alap(list, die);
+
+    int tmp_id;
+
+    for(int i = 0; i < _asap.size(); i++)
+    {
+        // update for each node
+        for(int j = 0; j < _asap[i].size(); j++) 
+        {
+            tmp_id = _asap[i][j];
+            list[tmp_id].ts = i;
+        }
+    }
+
+    for(int i = 0; i < _alap.size(); i++)
+    {
+        // update for each node
+        for(int j = 0; j < _alap[i].size(); j++) 
+        {
+            tmp_id = _alap[i][j];
+            // reverse the time step because we did backward analysis
+            list[tmp_id].tl = _asap.size()-1-i;
+        }
+    }
+
+    printf("debug: mobility: ");
+    for(int i = 0; i < list.size(); i++)
+    {
+        if(!list[i].scheduled)
+            printf("(%d %d) ", list[i].mob(), list[i].super);
+    }
+    printf("\n");
+
+
+    vector<vector<int> > _lbs = scalar_lbs(list, n_cas, n_cas, n_cas);
+
+    
+    return _lbs;
 
    
 }
 
 
-vector<int> rec_search(const vector<node>& list, int* node_status, int id, operation* cas_fu, int cur, int end, vector<int> vec_in)
+vector<int> rec_search(const vector<node>& list, int id, operation* cas_fu, int cur, int end, vector<int> vec_in)
 {
     // not match or already scheduled, return directly
-    if(cas_fu[cur] != list[id].op || node_status[id] == 1)
+    if(cas_fu[cur] != list[id].op || list[id].scheduled == true)
+        return vec_in;
+
+    // except the tail, we can't wb rf
+    if(cur != end && list[id].sucs.size() > 1)
         return vec_in;
 
     vec_in.push_back(id);
     vector<int> vec_cpy = vec_in;
-    printf("debug: hit %d type: %d\n", id, list[id].op);
 
     // is it the end of cascade
     if(cur == end) 
     {
-        printf("debug: return size: %d\n", vec_cpy.size());
         return vec_cpy;
     }
 
     // hit, then find its succesors
     for(int i = 0; i < list[id].sucs.size(); i++) 
     {
-        printf("debug: call size: %d\n", vec_in.size());
-        vec_cpy = rec_search(list, node_status, list[id].sucs[i], cas_fu, cur+1, end, vec_in);
+        vec_cpy = rec_search(list, list[id].sucs[i], cas_fu, cur+1, end, vec_in);
         if(vec_cpy.size() > vec_in.size())
             break;
     }
-    printf("debug: return size: %d\n", vec_cpy.size());
     return vec_cpy;
 }
 
@@ -130,6 +216,13 @@ vector<vector<int> > scalar_lbs(vector<node> list, int add, int mul, int shi)
     int schedule = 0;
     int t = 0;
     int reg_cnt = 0;
+
+    for(int i = 0; i < list.size(); i++)
+    {
+        if(list[i].scheduled) 
+            schedule++;
+    }
+
     // schedule for each time step
     while(schedule != list.size()) 
     {
@@ -167,18 +260,11 @@ vector<vector<int> > scalar_lbs(vector<node> list, int add, int mul, int shi)
             list[id].scheduled = true;
             //printf("%d ", id);
 
-            // source operand not exsit, must be loaded from mem
-            if(ptr->pre_l == -1)    // load operand from mem
+            // load operands from mem
+            for(int i = 0; i < ptr->wait_mem; i++)
             {
                 printf("<LD #%d>  ", reg_cnt);
-                ptr->rf_pre_l = reg_cnt++;  // use the reg
-            }
-
-            // considering two operands case, so check the right
-            if(ptr->op != SHI && ptr->pre_r == -1)
-            {
-                printf("<LD #%d>  ", reg_cnt);
-                ptr->rf_pre_r = reg_cnt++;  // use the reg
+                ptr->rf_mem.push_back(reg_cnt++);  // use the reg
             }
             ptr->rf_id = reg_cnt++;
             ptr->show_inst();
@@ -258,20 +344,12 @@ vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
             step[t].push_back(id); // push id
             schedule++;
             ptr->scheduled = true;
+
             //printf("%d ", id);
-
-            // source operand not exsit, must be loaded from mem
-            if(ptr->pre_l == -1)    // load operand from mem
+            for(int i = 0; i < ptr->wait_mem; i++)
             {
                 printf("<LD #%d>  ", reg_cnt);
-                ptr->rf_pre_l = reg_cnt++;  // use the reg
-            }
-
-            // considering two operands case, so check the right
-            if(ptr->op != SHI && ptr->pre_r == -1)
-            {
-                printf("<LD #%d>  ", reg_cnt);
-                ptr->rf_pre_r = reg_cnt++;  // use the reg
+                ptr->rf_mem.push_back(reg_cnt++);  // use the reg
             }
             ptr->rf_id = reg_cnt++;
             ptr->show_inst();
@@ -290,19 +368,10 @@ vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
             schedule++;
             ptr->scheduled = true;
             //printf("%d ", id);
-
-            // source operand not exsit, must be loaded from mem
-            if(ptr->pre_l == -1)    // load operand from mem
+            for(int i = 0; i < ptr->wait_mem; i++)
             {
                 printf("<LD #%d>  ", reg_cnt);
-                ptr->rf_pre_l = reg_cnt++;  // use the reg
-            }
-
-            // considering two operands case, so check the right
-            if(ptr->op != SHI && ptr->pre_r == -1)
-            {
-                printf("<LD #%d>  ", reg_cnt);
-                ptr->rf_pre_r = reg_cnt++;  // use the reg
+                ptr->rf_mem.push_back(reg_cnt++);  // use the reg
             }
             ptr->rf_id = reg_cnt++;
             ptr->show_inst();
@@ -322,18 +391,10 @@ vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
             ptr->scheduled = true;
             //printf("%d ", id);
 
-            // source operand not exsit, must be loaded from mem
-            if(ptr->pre_l == -1)    // load operand from mem
+            for(int i = 0; i < ptr->wait_mem; i++)
             {
                 printf("<LD #%d>  ", reg_cnt);
-                ptr->rf_pre_l = reg_cnt++;  // use the reg
-            }
-
-            // considering two operands case, so check the right
-            if(ptr->op != SHI && ptr->pre_r == -1)
-            {
-                printf("<LD #%d>  ", reg_cnt);
-                ptr->rf_pre_r = reg_cnt++;  // use the reg
+                ptr->rf_mem.push_back(reg_cnt++);  // use the reg
             }
             ptr->rf_id = reg_cnt++;
             ptr->show_inst();
@@ -361,19 +422,18 @@ vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi)
 
 }
 
-vector<vector<int> > asap(vector<node> list)
+vector<vector<int> > asap(vector<node> list, int die)
 {
     printf("----ASAP----\n");
     vector<vector<int> > step;
 
     int schedule = 0;
     int t = 0;
-
+    
+    schedule += die;
     // schedule for each time step
     while(schedule != list.size()) 
     {
-        //if(t > 30)
-         //   break;
         vector<int> tmp;
         step.push_back(tmp);
         printf("time step %d:", t);
@@ -410,13 +470,15 @@ vector<vector<int> > asap(vector<node> list)
     return step;
 }
 
-vector<vector<int> > alap(vector<node> list)
+vector<vector<int> > alap(vector<node> list, int die)
 {
     printf("----ALAP----\n");
     vector<vector<int> > step;
 
     int schedule = 0;
     int t = 0;
+    schedule += die;
+
     vector<int> tmp;
     step.push_back(tmp);
     // iterate nodes for last time step
@@ -424,7 +486,7 @@ vector<vector<int> > alap(vector<node> list)
     for(int i = 0; i < list.size(); i++)
     {
         // find nodes without followers as start point
-        if( !list[i].sucs.size() )
+        if( !list[i].sucs.size() && !list[i].scheduled)
         {
             // schedule the node
             list[i].scheduled = true;
@@ -450,27 +512,15 @@ vector<vector<int> > alap(vector<node> list)
             // find its l_pre & r_pre
             node* ptr = &(list[step[t-1][i]]);
 
-            // find a pre_l
-            if( ptr->pre_l >= 0 ) 
+            // find a pre
+            for(int i = 0; i < ptr->pres.size(); i++)
             {
-                if( !list[ptr->pre_l].scheduled )
+                if( !list[ptr->pres[i]].scheduled )
                 {
-                    step[t].push_back(ptr->pre_l);
-                    list[ptr->pre_l].scheduled = true;
+                    step[t].push_back(ptr->pres[i]);
+                    list[ptr->pres[i]].scheduled = true;
                     schedule ++;
-                    printf("%d ", ptr->pre_l);
-                }
-            }
-
-            // find a pre_r
-            if( ptr->pre_r >= 0) 
-            {
-                if( !list[ptr->pre_r].scheduled )
-                {
-                    step[t].push_back(ptr->pre_r);
-                    list[ptr->pre_r].scheduled = true;
-                    schedule ++;
-                    printf("%d ", ptr->pre_r);
+                    printf("%d ", ptr->pres[i]);
                 }
             }
         }

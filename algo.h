@@ -25,15 +25,15 @@ typedef enum
 
 int generate_combos(int n, int k);
 
-vector<vector<int> > asap(vector<node> list);
+vector<vector<int> > asap(vector<node> list, int die);
 
-vector<vector<int> > alap(vector<node> list);
+vector<vector<int> > alap(vector<node> list, int die);
 
 vector<vector<int> > vliw_lbs(vector<node> list, int add, int mul, int shi);
 vector<vector<int> > scalar_lbs(vector<node> list, int add, int mul, int shi);
-vector<vector<int> > cascade_coverage(vector<node> list, char* file_name);
+vector<vector<int> > cascade_coverage(vector<node>& list, char* file_name, int n_cas);
 
-vector<int> rec_search(const vector<node>& list, int* node_status, int id, operation* cas_fu, int cur, int end, vector<int> vec_in, vector<int>& sucs);
+vector<int> rec_search(const vector<node>& list, int id, operation* cas_fu, int cur, int end, vector<int> vec_in);
 
 
 

@@ -22,16 +22,17 @@ int main(int argc, char* argv[])
 
     printf("log: read input file %s\n", argv[1]);
     int _archi = atoi(argv[2]);
-    int num_add, num_mul, num_shi;
+    int num_add, num_mul, num_shi, n_cas;
 
     if( _archi == 2) // only for cascade
     {
-        if(argc < 4)
+        if(argc < 5)
         {
-            printf("usage: <input file> <archi> <cascade order file>\n");
+            printf("usage: <input file> <archi> <cascade order file> <# of cascade>\n");
             exit(1);
         }
         char* file_name = argv[3];
+        n_cas = atoi(argv[4]);
     }
     else            // VLIW or scalar must specify # of each FU type
     {
@@ -70,11 +71,11 @@ int main(int argc, char* argv[])
         fin >> id >> name_op; 
         //assert( id == i);
         if(name_op == "ADD" || name_op == "add" || name_op == "SUB" || name_op == "sub")
-            node_list[id].init(id, ADD);
+            node_list[id].init(id, ADD, &node_list);
         else if (name_op == "MUL" || name_op == "mul")
-            node_list[id].init(id, MUL);
+            node_list[id].init(id, MUL, &node_list);
         else if (name_op == "SHI" || name_op == "shi")
-            node_list[id].init(id, SHI);
+            node_list[id].init(id, SHI, &node_list);
         else
             printf("fatal!, unknown op name %s\n", name_op.c_str());
         //printf("%d  %s\n", id, name_op.c_str());
@@ -85,12 +86,11 @@ int main(int argc, char* argv[])
     while(fin >> from >> to)
     {
         node_list[from].connect(to);
-        node_list[to].connected(from);
     }
 
     // find ts(asap) & tl(alap) for each node
-    vector<vector<int> > _asap = asap(node_list);
-    vector<vector<int> > _alap = alap(node_list);
+    vector<vector<int> > _asap = asap(node_list, 0);
+    vector<vector<int> > _alap = alap(node_list, 0);
 
     // update ts for asap
     // iterate each time step
@@ -128,6 +128,8 @@ int main(int argc, char* argv[])
     {
         vector<vector<int> > _lbs = vliw_lbs(node_list, num_add, num_mul, num_shi);
         printf("vliw_total %s %d\n", argv[1], _lbs.size());
+        float opc = (float)(num_op) / _lbs.size();
+        printf("opc = %f\n", opc);
     }
     else if(_archi == scalar)
     {
@@ -136,13 +138,10 @@ int main(int argc, char* argv[])
     }
     else if (_archi == cascade)
     {
-        operation cascaded_fu[3];
-        cascaded_fu[num_add] = ADD;
-        cascaded_fu[num_mul] = MUL;
-        cascaded_fu[num_shi] = SHI;
-        vector<vector<int> > _lbs = cascade_coverage(node_list, argv[3]);
+        vector<vector<int> > _lbs = cascade_coverage(node_list, argv[3], n_cas);
         printf("cascade_total %s %d\n", argv[1], _lbs.size());
-    
+        float opc = (float)(num_op) / _lbs.size();
+        printf("opc = %f\n", opc);
     }
     else
     {
