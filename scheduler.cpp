@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
         vector<vector<int> > _lbs = vliw_lbs(node_list, num_add, num_mul, num_shi);
         printf("vliw_total %s %d\n", argv[1], _lbs.size());
         float opc = (float)(num_op) / _lbs.size();
-        printf("opc = %f\n", opc);
+        printf("opc = %.3f\n", opc);
     }
     else if(_archi == scalar)
     {
@@ -141,7 +141,7 @@ int main(int argc, char* argv[])
         vector<vector<int> > _lbs = cascade_coverage(node_list, argv[3], n_cas);
         printf("cascade_total %s %d\n", argv[1], _lbs.size());
         float opc = (float)(num_op) / _lbs.size();
-        printf("opc = %f\n", opc);
+        printf("opc = %.3f\n", opc);
     }
     else
     {
